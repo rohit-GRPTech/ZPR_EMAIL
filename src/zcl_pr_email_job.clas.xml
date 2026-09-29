@@ -1,0 +1,54 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<abapGit version="v1.0.0" serializer="LCL_OBJECT_CLAS" serializer_version="v1.0.0">
+ <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
+  <asx:values>
+   <VSEOCLASS>
+    <CLSNAME>ZCL_PR_EMAIL_JOB</CLSNAME>
+    <LANGU>E</LANGU>
+    <DESCRIPT>ZCL_PR_EMAIL_JOB</DESCRIPT>
+    <STATE>1</STATE>
+    <CLSCCINCL>X</CLSCCINCL>
+    <FIXPT>X</FIXPT>
+    <UNICODE>X</UNICODE>
+   </VSEOCLASS>
+   <DESCRIPTIONS>
+    <SEOCOMPOTX>
+     <CLSNAME>ZCL_PR_EMAIL_JOB</CLSNAME>
+     <CMPNAME>APPROVAL_TASKS</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Approval task definitions (8 digits, no TS)</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CLSNAME>ZCL_PR_EMAIL_JOB</CLSNAME>
+     <CMPNAME>DRY_RUN</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Preview only - do not send or update journal</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CLSNAME>ZCL_PR_EMAIL_JOB</CLSNAME>
+     <CMPNAME>FROM_DATE</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Fixed PR creation start date</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CLSNAME>ZCL_PR_EMAIL_JOB</CLSNAME>
+     <CMPNAME>INBOX_URL</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>HTTPS URL of SAP My Inbox</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CLSNAME>ZCL_PR_EMAIL_JOB</CLSNAME>
+     <CMPNAME>PRS</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Purchase requisitions (optional scope)</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CLSNAME>ZCL_PR_EMAIL_JOB</CLSNAME>
+     <CMPNAME>PURCHASING_EMAIL</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>Purchasing email - final approval only</DESCRIPT>
+    </SEOCOMPOTX>
+   </DESCRIPTIONS>
+  </asx:values>
+ </asx:abap>
+</abapGit>

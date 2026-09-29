@@ -1,0 +1,41 @@
+{
+  "formatVersion": "1",
+  "header": {
+    "description": "Overall PR workflow emails - preview",
+    "originalLanguage": "en",
+    "abapLanguageVersion": "cloudDevelopment"
+  },
+  "generalInformation": {
+    "catalogName": "ZPR_EMAIL"
+  },
+  "parameters": {
+    "singleValueParameters": [
+      {
+        "name": "DRY_RUN",
+        "value": "X"
+      },
+      {
+        "name": "FROM_DATE",
+        "value": ""
+      },
+      {
+        "name": "INBOX_URL",
+        "value": ""
+      },
+      {
+        "name": "PURCHASING_EMAIL",
+        "value": ""
+      }
+    ],
+    "valueRangesParameters": [
+      {
+        "name": "APPROVAL_TASKS",
+        "valueRanges": []
+      },
+      {
+        "name": "PRS",
+        "valueRanges": []
+      }
+    ]
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "formatVersion": "1",
+  "header": {
+    "description": "Overall PR workflow emails",
+    "originalLanguage": "en",
+    "abapLanguageVersion": "cloudDevelopment"
+  },
+  "generalInformation": {
+    "className": "ZCL_PR_EMAIL_JOB"
+  },
+  "sections": [
+    {
+      "name": "MAIN",
+      "title": "PR email processing"
+    }
+  ],
+  "groups": [
+    {
+      "name": "CONFIG",
+      "title": "Scope and delivery",
+      "section": "MAIN"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "APPROVAL_TASKS",
+      "title": "Approval task definitions (8 digits, no TS)",
+      "group": "CONFIG",
+      "mandatory": true
+    },
+    {
+      "name": "DRY_RUN",
+      "title": "Preview only - do not send or update journal",
+      "group": "CONFIG"
+    },
+    {
+      "name": "FROM_DATE",
+      "title": "Fixed PR creation start date",
+      "group": "CONFIG",
+      "mandatory": true
+    },
+    {
+      "name": "INBOX_URL",
+      "title": "HTTPS URL of SAP My Inbox",
+      "group": "CONFIG"
+    },
+    {
+      "name": "PRS",
+      "title": "Purchase requisitions (optional scope)",
+      "group": "CONFIG"
+    },
+    {
+      "name": "PURCHASING_EMAIL",
+      "title": "Purchasing email - final approval only",
+      "group": "CONFIG"
+    }
+  ]
+}
