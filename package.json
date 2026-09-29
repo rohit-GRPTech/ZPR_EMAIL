@@ -1,0 +1,14 @@
+{
+  "name": "zpr-email-validation",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "test": "node tools/check-package.mjs && node tools/test-abap.mjs"
+  },
+  "devDependencies": {
+    "@abaplint/core": "2.120.60",
+    "@abaplint/runtime": "2.13.93",
+    "@abaplint/transpiler": "2.13.93",
+    "ajv": "8.20.0"
+  }
+}

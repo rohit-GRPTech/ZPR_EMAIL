@@ -3,9 +3,9 @@
  <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
   <asx:values>
    <VSEOCLASS>
-    <CLSNAME>ZCL_PR_EMAIL_CHECK</CLSNAME>
+    <CLSNAME>ZCL_PR_EMAIL_TEST_RUN</CLSNAME>
     <LANGU>E</LANGU>
-    <DESCRIPT>Inspect applied PR workflow and recipients</DESCRIPT>
+    <DESCRIPT>Run notification service for one test PR</DESCRIPT>
     <STATE>1</STATE>
     <CLSCCINCL>X</CLSCCINCL>
     <FIXPT>X</FIXPT>

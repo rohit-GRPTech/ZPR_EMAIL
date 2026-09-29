@@ -19,12 +19,17 @@ CLASS zcl_pr_email_service DEFINITION
         dry_run          TYPE abap_bool,
         inbox_url        TYPE string,
         purchasing_email TYPE zif_pr_email_types=>ty_address,
+        approved_result  TYPE zif_pr_email_types=>ty_result,
+        max_prs          TYPE i,
       END OF ty_options,
 
       BEGIN OF ty_report,
         inspected TYPE i,
         queued    TYPE i,
         errors    TYPE i,
+        previewed TYPE i,
+        skipped   TYPE i,
+        duplicate TYPE i,
         messages  TYPE zif_pr_email_types=>tt_messages,
       END OF ty_report.
 
@@ -96,11 +101,19 @@ CLASS zcl_pr_email_service IMPLEMENTATION.
     ENDIF.
 
     IF options-approval_tasks IS INITIAL.
-
-      RAISE EXCEPTION NEW zcx_pr_email(
-        iv_detail = 'Maintain actual overall-PR approval task definitions; exclude review/rework tasks.'
-      ).
-
+      options-approval_tasks = zcl_pr_email_policy=>default_definitions( ).
+    ENDIF.
+    IF options-approved_result IS INITIAL.
+      options-approved_result = 'RELEASED'.
+    ENDIF.
+    IF options-max_prs = 0.
+      options-max_prs = 1000.
+    ENDIF.
+    IF options-max_prs < 1 OR options-max_prs > 100000.
+      RAISE EXCEPTION NEW zcx_pr_email( iv_detail = 'MAX_PRS must be between 1 and 100000.' ).
+    ENDIF.
+    IF options-dry_run <> abap_true AND options-dry_run <> abap_false.
+      RAISE EXCEPTION NEW zcx_pr_email( iv_detail = 'DRY_RUN must be X or blank.' ).
     ENDIF.
 
     LOOP AT options-approval_tasks INTO DATA(ls_definition).
@@ -108,6 +121,7 @@ CLASS zcl_pr_email_service IMPLEMENTATION.
       IF ls_definition-sign <> 'I'
          OR ls_definition-option <> 'EQ'
          OR ls_definition-low IS INITIAL
+         OR ls_definition-low CN '0123456789'
          OR ls_definition-high IS NOT INITIAL.
 
         RAISE EXCEPTION NEW zcx_pr_email(
@@ -118,6 +132,14 @@ CLASS zcl_pr_email_service IMPLEMENTATION.
 
     ENDLOOP.
 
+    IF options-purchasing_email IS NOT INITIAL.
+      DATA(lv_purchasing_email) = CONV string( options-purchasing_email ).
+      IF lv_purchasing_email NS '@' OR lv_purchasing_email CS space
+          OR lv_purchasing_email CS ';' OR lv_purchasing_email CS ','.
+        RAISE EXCEPTION NEW zcx_pr_email( iv_detail = 'Enter one valid purchasing mailbox, or leave it blank.' ).
+      ENDIF.
+    ENDIF.
+
     IF options-inbox_url IS NOT INITIAL
        AND options-inbox_url NP 'https://*'.
 
@@ -127,13 +149,20 @@ CLASS zcl_pr_email_service IMPLEMENTATION.
 
     ENDIF.
 
+    DATA(lv_limit) = options-max_prs + 1.
     SELECT DISTINCT PurchaseRequisition
       FROM I_PurchaseRequisitionItemAPI01
       WHERE CreationDate >= @options-from_date
         AND PurchaseRequisition IN @options-prs
         AND IsDeleted = @abap_false
       ORDER BY PurchaseRequisition
-      INTO TABLE @DATA(lt_prs).
+      INTO TABLE @DATA(lt_prs)
+      UP TO @lv_limit ROWS.
+
+    IF lines( lt_prs ) > options-max_prs.
+      RAISE EXCEPTION NEW zcx_pr_email(
+        iv_detail = 'PR scope exceeds MAX_PRS. Partition PR ranges or increase MAX_PRS; do not advance the fixed start date past pending PRs.' ).
+    ENDIF.
 
     LOOP AT lt_prs INTO DATA(ls_pr).
 
@@ -151,12 +180,18 @@ CLASS zcl_pr_email_service IMPLEMENTATION.
             |PR { ls_pr-PurchaseRequisition }: { lx_pr->detail }|
             TO report-messages.
 
+        CATCH cx_root INTO DATA(lx_unexpected).
+          ROLLBACK WORK.
+          report-errors += 1.
+          APPEND |PR { ls_pr-PurchaseRequisition }: { lx_unexpected->get_text( ) }|
+            TO report-messages.
+
       ENDTRY.
 
     ENDLOOP.
 
     APPEND
-      |Inspected { report-inspected }; queued { report-queued }; errors { report-errors }; dry run { options-dry_run }|
+      |PRs { report-inspected }; queued { report-queued }; preview { report-previewed }; duplicate { report-duplicate }; skipped { report-skipped }; errors { report-errors }|
       TO report-messages.
 
     rs_report = report.
@@ -169,13 +204,14 @@ CLASS zcl_pr_email_service IMPLEMENTATION.
     DATA(lt_items) = zcl_pr_email_source=>items( iv_pr ).
 
     IF lt_items IS INITIAL.
+      report-skipped += 1.
       RETURN.
     ENDIF.
 
     "Exclude PRs having an item created before the configured start date.
     LOOP AT lt_items INTO DATA(ls_item)
       WHERE creation_date < options-from_date.
-
+      report-skipped += 1.
       RETURN.
 
     ENDLOOP.
@@ -189,62 +225,29 @@ CLASS zcl_pr_email_service IMPLEMENTATION.
     ).
 
     IF ls_workflow-workflow_id IS INITIAL.
+      report-skipped += 1.
+      APPEND |PR { iv_pr }: no applied overall workflow visible yet; checked again next run.|
+        TO report-messages.
       RETURN.
     ENDIF.
 
-    ls_notice-workflow_id = ls_workflow-workflow_id.
+    DATA(lt_tasks) = zcl_pr_email_source=>tasks( ls_workflow-workflow_id ).
+    DATA(lt_notices) = zcl_pr_email_policy=>notices(
+      iv_pr = iv_pr is_workflow = ls_workflow it_tasks = lt_tasks
+      it_items = lt_items it_definitions = options-approval_tasks ).
 
-    IF zcl_pr_email_policy=>active(
-         ls_workflow-status
-       ) = abap_true.
-
-      DATA(lt_tasks) = zcl_pr_email_source=>tasks(
-        ls_workflow-workflow_id
-      ).
-
-      LOOP AT lt_tasks INTO DATA(ls_task)
-        WHERE definition IN options-approval_tasks.
-
-        IF zcl_pr_email_policy=>active(
-             ls_task-status
-           ) = abap_false.
-
-          CONTINUE.
-
-        ENDIF.
-
-        ls_notice-task_id = ls_task-task_id.
-        ls_notice-event = zif_pr_email_types=>approval.
-
-        notify(
-          is_notice = ls_notice
-          it_items  = lt_items
-        ).
-
-      ENDLOOP.
-
-    ELSEIF ls_workflow-status = 'COMPLETED'.
-
-      ls_notice-event = zcl_pr_email_policy=>outcome(
-        lt_items
-      ).
-
-      IF ls_notice-event IS INITIAL.
-
+    IF lt_notices IS INITIAL.
+      report-skipped += 1.
+      IF ls_workflow-status = 'COMPLETED'.
         RAISE EXCEPTION NEW zcx_pr_email(
-          iv_detail = 'Completed overall workflow has no uniform approved/rejected item status; notification held.'
-        ).
-
+          iv_detail = 'Completed overall workflow has no uniform approved/rejected item status; notification held.' ).
       ENDIF.
-
-      CLEAR ls_notice-task_id.
-
-      notify(
-        is_notice = ls_notice
-        it_items  = lt_items
-      ).
-
+      APPEND |PR { iv_pr }: workflow { ls_workflow-workflow_id } / { ls_workflow-status }; no actionable approval task.|
+        TO report-messages.
     ENDIF.
+    LOOP AT lt_notices INTO ls_notice.
+      notify( is_notice = ls_notice it_items = lt_items ).
+    ENDLOOP.
 
   ENDMETHOD.
 
@@ -348,7 +351,7 @@ CLASS zcl_pr_email_service IMPLEMENTATION.
     LOOP AT lt_tasks INTO DATA(ls_task)
       WHERE definition IN options-approval_tasks
         AND status = 'COMPLETED'
-        AND result = 'RELEASED'.
+        AND result = options-approved_result.
 
       DATA(ls_prior_notice) = is_notice.
       ls_prior_notice-task_id = ls_task-task_id.
@@ -396,6 +399,7 @@ CLASS zcl_pr_email_service IMPLEMENTATION.
       it_tasks        = lt_tasks
       it_definitions  = options-approval_tasks
       it_participants = lt_participants
+      iv_approved_result = options-approved_result
     ).
 
   ENDMETHOD.
@@ -413,41 +417,13 @@ CLASS zcl_pr_email_service IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    IF is_notice-event = zif_pr_email_types=>approval.
-
-      IF zcl_pr_email_policy=>active(
-           ls_workflow-status
-         ) = abap_false.
-
-        RETURN.
-
-      ENDIF.
-
-      DATA(lt_tasks) = zcl_pr_email_source=>tasks(
-        is_notice-workflow_id
-      ).
-
-      READ TABLE lt_tasks INTO DATA(ls_task)
-        WITH KEY task_id = is_notice-task_id.
-
-      IF sy-subrc = 0
-         AND ls_task-definition IN options-approval_tasks.
-
-        rv_current = zcl_pr_email_policy=>active(
-          ls_task-status
-        ).
-
-      ENDIF.
-
-    ELSEIF ls_workflow-status = 'COMPLETED'.
-
-      rv_current = xsdbool(
-        zcl_pr_email_policy=>outcome(
-          zcl_pr_email_source=>items( is_notice-pr )
-        ) = is_notice-event
-      ).
-
-    ENDIF.
+    DATA(lt_current) = zcl_pr_email_policy=>notices(
+      iv_pr = is_notice-pr is_workflow = ls_workflow
+      it_tasks = zcl_pr_email_source=>tasks( is_notice-workflow_id )
+      it_items = zcl_pr_email_source=>items( is_notice-pr )
+      it_definitions = options-approval_tasks ).
+    rv_current = xsdbool( line_exists( lt_current[
+      task_id = is_notice-task_id event = is_notice-event ] ) ).
 
   ENDMETHOD.
 
@@ -471,7 +447,8 @@ CLASS zcl_pr_email_service IMPLEMENTATION.
         AND user_id = @ls_log-user_id
       INTO @DATA(lv_state).
 
-    IF sy-subrc = 0 AND lv_state <> 'E'.
+    IF sy-subrc = 0 AND lv_state <> 'E' AND options-dry_run = abap_false.
+      report-duplicate += 1.
       RETURN.
     ENDIF.
 
@@ -508,6 +485,7 @@ CLASS zcl_pr_email_service IMPLEMENTATION.
 
       ENDIF.
 
+      report-previewed += 1.
       APPEND
         |PREVIEW PR { is_notice-pr }, { is_notice-event }, task { is_notice-task_id }, user { iv_user }, email { lv_preview_address }|
         TO report-messages.
@@ -548,6 +526,18 @@ CLASS zcl_pr_email_service IMPLEMENTATION.
     ENDIF.
 
     TRY.
+        "The database claim may have waited for another run. Recheck afterwards.
+        IF still_current( is_notice ) = abap_false.
+          ROLLBACK WORK.
+          RETURN.
+        ENDIF.
+        IF is_notice-event = zif_pr_email_types=>approval.
+          lt_current_users = zcl_pr_email_source=>recipients( is_notice ).
+          IF NOT line_exists( lt_current_users[ table_line = iv_user ] ).
+            ROLLBACK WORK.
+            RETURN.
+          ENDIF.
+        ENDIF.
 
         ls_log-email = iv_address.
 
@@ -585,6 +575,8 @@ CLASS zcl_pr_email_service IMPLEMENTATION.
         COMMIT WORK AND WAIT.
 
         report-queued += 1.
+        APPEND |QUEUED PR { is_notice-pr }, workflow { is_notice-workflow_id }, task { is_notice-task_id }, { is_notice-event }, { iv_user }, { ls_log-email }|
+          TO report-messages.
 
       CATCH zcx_pr_email INTO DATA(lx_user).
 

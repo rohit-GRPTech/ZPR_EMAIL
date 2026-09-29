@@ -13,8 +13,14 @@ CLASS zcl_pr_email_job DEFINITION
     "! <p class="shorttext synchronized" lang="en">Purchase requisitions (optional scope)</p>
     DATA prs TYPE zcl_pr_email_service=>tt_pr_range.
 
-    "! <p class="shorttext synchronized" lang="en">Approval task definitions (8 digits, no TS)</p>
+    "! <p class="shorttext synchronized" lang="en">Approval tasks override (blank = SAP defaults)</p>
     DATA approval_tasks TYPE zcl_pr_email_service=>tt_definitions.
+
+    "! <p class="shorttext synchronized" lang="en">Approved task result for rejection history</p>
+    DATA approved_result TYPE zif_pr_email_types=>ty_result VALUE 'RELEASED'.
+
+    "! <p class="shorttext synchronized" lang="en">Maximum PRs in configured scope</p>
+    DATA max_prs TYPE i VALUE 1000.
 
     "! <p class="shorttext synchronized" lang="en">Preview only - do not send or update journal</p>
     DATA dry_run TYPE abap_bool VALUE abap_true.
@@ -44,6 +50,8 @@ CLASS zcl_pr_email_job IMPLEMENTATION.
             dry_run          = dry_run
             inbox_url        = CONV string( inbox_url )
             purchasing_email = purchasing_email
+            approved_result  = approved_result
+            max_prs          = max_prs
           )
         ).
 
@@ -66,18 +74,22 @@ CLASS zcl_pr_email_job IMPLEMENTATION.
         ).
 
         LOOP AT ls_report-messages INTO DATA(lv_message).
-
-          lo_log->add_item(
-            cl_bali_free_text_setter=>create(
-              severity = COND #(
-                WHEN ls_report-errors > 0
-                THEN if_bali_constants=>c_severity_error
-                ELSE if_bali_constants=>c_severity_information
+          "BALI free text is bounded. Preserve long addresses/error details.
+          DATA(lv_remaining) = lv_message.
+          WHILE lv_remaining IS NOT INITIAL.
+            DATA(lv_length) = nmin( val1 = strlen( lv_remaining ) val2 = 200 ).
+            lo_log->add_item(
+              cl_bali_free_text_setter=>create(
+                severity = COND #(
+                  WHEN ls_report-errors > 0
+                  THEN if_bali_constants=>c_severity_error
+                  ELSE if_bali_constants=>c_severity_information
+                )
+                text = CONV #( lv_remaining(lv_length) )
               )
-              text = CONV #( lv_message )
-            )
-          ).
-
+            ).
+            lv_remaining = substring( val = lv_remaining off = lv_length ).
+          ENDWHILE.
         ENDLOOP.
 
         cl_bali_log_db=>get_instance( )->save_log_2nd_db_connection(
@@ -92,6 +104,11 @@ CLASS zcl_pr_email_job IMPLEMENTATION.
             previous = lx_log.
 
     ENDTRY.
+
+    "Do not report a successful job when any recipient/PR failed.
+    IF ls_report-errors > 0.
+      RAISE EXCEPTION TYPE cx_apj_rt_content.
+    ENDIF.
 
   ENDMETHOD.
 

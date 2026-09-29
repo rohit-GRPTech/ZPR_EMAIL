@@ -35,7 +35,7 @@ CLASS zcl_pr_email_html IMPLEMENTATION.
       '<body style="font-family:Arial,sans-serif;color:#172033">' &&
       |<h2>{ escape( subject( is_notice ) ) }</h2>| &&
       '<p>Overall purchase requisition approval. The table contains all current, non-deleted items.</p>' &&
-      |<p>Workflow: { is_notice-workflow_id }; task: { is_notice-task_id }.</p>| &&
+      |<p>Number of items: { lines( it_items ) }.</p>| &&
       '<table style="border-collapse:collapse;font-size:13px"><thead><tr style="background:#e8eef7">'.
     DATA lt_headers TYPE STANDARD TABLE OF string WITH EMPTY KEY.
     lt_headers = VALUE #( ( `Item` ) ( `Material / group` ) ( `PR description` )
@@ -49,9 +49,13 @@ CLASS zcl_pr_email_html IMPLEMENTATION.
     LOOP AT it_items INTO DATA(ls_item).
       DATA(lv_amount) = CONV string( 'Not calculated' ).
       IF ls_item-price_unit > 0.
-        DATA(lv_estimate) = CONV zif_pr_email_types=>ty_amount(
-          ls_item-quantity * ls_item-price / ls_item-price_unit ).
-        lv_amount = |{ lv_estimate CURRENCY = ls_item-currency } { ls_item-currency }|.
+        TRY.
+            DATA(lv_estimate) = CONV zif_pr_email_types=>ty_amount(
+              ls_item-quantity * ls_item-price / ls_item-price_unit ).
+            lv_amount = |{ lv_estimate CURRENCY = ls_item-currency } { ls_item-currency }|.
+          CATCH cx_sy_arithmetic_error cx_sy_conversion_error.
+            lv_amount = 'See valuation in SAP'.
+        ENDTRY.
       ENDIF.
       rv_html &&= '<tr>' && cell( |{ ls_item-item ALPHA = OUT }| ) &&
         cell( |{ ls_item-material ALPHA = OUT } / { ls_item-material_group }| ) &&

@@ -1,5 +1,16 @@
 CLASS zcl_pr_email_policy DEFINITION PUBLIC FINAL CREATE PUBLIC.
   PUBLIC SECTION.
+    CLASS-METHODS default_definitions
+      RETURNING VALUE(rt_definitions) TYPE zif_pr_email_types=>tt_definitions.
+    CLASS-METHODS definition IMPORTING iv_definition TYPE string
+      RETURNING VALUE(rv_definition) TYPE zif_pr_email_types=>ty_definition.
+    CLASS-METHODS notices
+      IMPORTING iv_pr TYPE zif_pr_email_types=>ty_pr
+        is_workflow TYPE zif_pr_email_types=>ty_workflow
+        it_tasks TYPE zif_pr_email_types=>tt_tasks
+        it_items TYPE zif_pr_email_types=>tt_items
+        it_definitions TYPE zif_pr_email_types=>tt_definitions
+      RETURNING VALUE(rt_notices) TYPE zif_pr_email_types=>tt_notices.
     CLASS-METHODS active IMPORTING iv_status TYPE c RETURNING VALUE(rv_active) TYPE abap_bool.
     CLASS-METHODS latest IMPORTING it_workflows TYPE zif_pr_email_types=>tt_workflows
       RETURNING VALUE(rs_workflow) TYPE zif_pr_email_types=>ty_workflow.
@@ -13,10 +24,58 @@ CLASS zcl_pr_email_policy DEFINITION PUBLIC FINAL CREATE PUBLIC.
         it_tasks TYPE zif_pr_email_types=>tt_tasks
         it_definitions TYPE zif_pr_email_types=>tt_definitions
         it_participants TYPE zif_pr_email_types=>tt_participants
+        iv_approved_result TYPE zif_pr_email_types=>ty_result DEFAULT 'RELEASED'
       RETURNING VALUE(rt_users) TYPE zif_pr_email_types=>tt_users.
 ENDCLASS.
 
 CLASS zcl_pr_email_policy IMPLEMENTATION.
+  METHOD default_definitions.
+    "SAP standard overall PR approval; review and requester rework excluded.
+    rt_definitions = VALUE #(
+      ( sign = 'I' option = 'EQ' low = '02000702' )
+      ( sign = 'I' option = 'EQ' low = '01800239' ) ).
+  ENDMETHOD.
+  METHOD definition.
+    DATA(lv_definition) = iv_definition.
+    CONDENSE lv_definition NO-GAPS.
+    TRANSLATE lv_definition TO UPPER CASE.
+    IF strlen( lv_definition ) = 10 AND lv_definition(2) = 'TS'.
+      lv_definition = lv_definition+2.
+    ENDIF.
+    IF strlen( lv_definition ) = 8 AND lv_definition CO '0123456789'.
+      rv_definition = lv_definition.
+    ENDIF.
+  ENDMETHOD.
+  METHOD notices.
+    IF is_workflow-workflow_id IS INITIAL OR it_items IS INITIAL.
+      RETURN.
+    ENDIF.
+    DATA(ls_notice) = VALUE zif_pr_email_types=>ty_notice(
+      pr = iv_pr workflow_id = is_workflow-workflow_id ).
+    IF active( is_workflow-status ) = abap_true.
+      "An empty ABAP range matches everything; never allow that here.
+      IF it_definitions IS INITIAL.
+        RETURN.
+      ENDIF.
+      LOOP AT it_tasks INTO DATA(ls_task)
+          WHERE workflow_id = is_workflow-workflow_id
+            AND definition IN it_definitions.
+        IF ls_task-task_id IS INITIAL OR active( ls_task-status ) = abap_false.
+          CONTINUE.
+        ENDIF.
+        ls_notice-task_id = ls_task-task_id.
+        ls_notice-event = zif_pr_email_types=>approval.
+        APPEND ls_notice TO rt_notices.
+      ENDLOOP.
+      SORT rt_notices BY task_id.
+      DELETE ADJACENT DUPLICATES FROM rt_notices COMPARING task_id.
+    ELSEIF is_workflow-status = 'COMPLETED'.
+      ls_notice-event = outcome( it_items ).
+      IF ls_notice-event IS NOT INITIAL.
+        APPEND ls_notice TO rt_notices.
+      ENDIF.
+    ENDIF.
+  ENDMETHOD.
   METHOD active.
     " WAITING is not an actionable task. Never notify planned/future steps.
     rv_active = xsdbool( iv_status = 'READY' OR iv_status = 'SELECTED' OR iv_status = 'STARTED' ).
@@ -63,7 +122,7 @@ CLASS zcl_pr_email_policy IMPLEMENTATION.
       RETURN.
     ENDIF.
     LOOP AT it_tasks INTO DATA(ls_task) WHERE workflow_id = iv_workflow
-        AND status = 'COMPLETED' AND result = 'RELEASED'
+        AND status = 'COMPLETED' AND result = iv_approved_result
         AND definition IN it_definitions.
       IF ls_task-processor IS NOT INITIAL.
         INSERT ls_task-processor INTO TABLE rt_users.

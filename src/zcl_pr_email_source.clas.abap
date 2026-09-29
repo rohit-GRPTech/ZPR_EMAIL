@@ -87,7 +87,8 @@ CLASS zcl_pr_email_source IMPLEMENTATION.
         WorkflowScenarioDefinition AS scenario,
         WorkflowExternalStatus     AS status,
         WrkflwTskCreationUTCDateTime AS created_at
-      WHERE WorkflowScenarioDefinition = '02000458'
+      WHERE ( WorkflowScenarioDefinition = '02000458'
+           OR WorkflowScenarioDefinition = 'WS02000458' )
         AND ( SAPBusinessObjectNodeKey1 = @iv_pr
            OR SAPBusinessObjectNodeKey1 = @lv_unpadded )
         AND SAPBusinessObjectNodeKey2 = ''
@@ -105,9 +106,21 @@ CLASS zcl_pr_email_source IMPLEMENTATION.
         WorkflowTaskDefinition     AS definition,
         WorkflowTaskExternalStatus AS status,
         WorkflowTaskResult         AS result,
-        WorkflowTaskProcessor      AS processor
+        WorkflowTaskProcessor      AS processor,
+        WorkflowTaskStepType       AS step_type,
+        WrkflwTskCreationUTCDateTime AS created_at,
+        WrkflwTskCompletionUTCDateTime AS completed_at
       WHERE WorkflowInternalID = @iv_workflow
-      INTO CORRESPONDING FIELDS OF TABLE @rt_tasks.
+      INTO TABLE @DATA(lt_tasks).
+
+    "Normalize before assigning to CHAR8; never truncate a TS-prefixed ID.
+    LOOP AT lt_tasks INTO DATA(ls_raw).
+      DATA(ls_task) = CORRESPONDING zif_pr_email_types=>ty_task( ls_raw ).
+      ls_task-definition = zcl_pr_email_policy=>definition(
+        CONV string( ls_raw-definition ) ).
+      APPEND ls_task TO rt_tasks.
+    ENDLOOP.
+    SORT rt_tasks BY created_at task_id.
 
   ENDMETHOD.
 

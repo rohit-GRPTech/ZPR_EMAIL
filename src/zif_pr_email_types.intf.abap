@@ -8,6 +8,7 @@ INTERFACE zif_pr_email_types PUBLIC.
   TYPES ty_timestamp TYPE p LENGTH 11 DECIMALS 7.
   TYPES tt_users TYPE SORTED TABLE OF ty_user WITH UNIQUE KEY table_line.
   TYPES ty_definition TYPE c LENGTH 8.
+  TYPES ty_result TYPE c LENGTH 32.
   TYPES tt_definitions TYPE RANGE OF ty_definition.
   TYPES:
     BEGIN OF ty_item,
@@ -34,7 +35,7 @@ INTERFACE zif_pr_email_types PUBLIC.
     tt_items TYPE STANDARD TABLE OF ty_item WITH EMPTY KEY,
     BEGIN OF ty_workflow,
       workflow_id TYPE ty_id,
-      scenario TYPE c LENGTH 8,
+      scenario TYPE c LENGTH 14,
       status TYPE c LENGTH 12,
       created_at TYPE ty_timestamp,
     END OF ty_workflow,
@@ -44,8 +45,11 @@ INTERFACE zif_pr_email_types PUBLIC.
       task_id TYPE ty_id,
       definition TYPE c LENGTH 8,
       status TYPE c LENGTH 12,
-      result TYPE c LENGTH 32,
+      result TYPE ty_result,
       processor TYPE ty_user,
+      step_type TYPE c LENGTH 80,
+      created_at TYPE ty_timestamp,
+      completed_at TYPE ty_timestamp,
     END OF ty_task,
     tt_tasks TYPE STANDARD TABLE OF ty_task WITH EMPTY KEY,
     BEGIN OF ty_recipient,

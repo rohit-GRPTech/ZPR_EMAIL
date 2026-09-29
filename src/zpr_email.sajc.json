@@ -24,14 +24,14 @@
   "parameters": [
     {
       "name": "APPROVAL_TASKS",
-      "title": "Approval task definitions (8 digits, no TS)",
-      "group": "CONFIG",
-      "mandatory": true
+      "title": "Approval tasks override (blank = SAP defaults)",
+      "group": "CONFIG"
     },
     {
       "name": "DRY_RUN",
       "title": "Preview only - do not send or update journal",
-      "group": "CONFIG"
+      "group": "CONFIG",
+      "screenElement": "checkbox"
     },
     {
       "name": "FROM_DATE",
@@ -52,6 +52,16 @@
     {
       "name": "PURCHASING_EMAIL",
       "title": "Purchasing email - final approval only",
+      "group": "CONFIG"
+    },
+    {
+      "name": "APPROVED_RESULT",
+      "title": "Approved task result for rejection history",
+      "group": "CONFIG"
+    },
+    {
+      "name": "MAX_PRS",
+      "title": "Maximum PRs in configured scope",
       "group": "CONFIG"
     }
   ]

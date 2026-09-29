@@ -7,8 +7,12 @@
   },
   "subobjects": [
     {
-      "name": "ZPR_DISPATCHEMAIL",
+      "name": "DISPATCH",
       "description": "PR email processing and errors"
+    },
+    {
+      "name": "ZPR_DISPATCHEMAIL",
+      "description": "Existing legacy subobject (not used by this job)"
     }
   ]
 }

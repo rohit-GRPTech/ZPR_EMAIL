@@ -25,6 +25,14 @@
       {
         "name": "PURCHASING_EMAIL",
         "value": ""
+      },
+      {
+        "name": "APPROVED_RESULT",
+        "value": "RELEASED"
+      },
+      {
+        "name": "MAX_PRS",
+        "value": "1000"
       }
     ],
     "valueRangesParameters": [
