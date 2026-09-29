@@ -41,14 +41,14 @@ CLASS zcl_pr_email_event_check IMPLEMENTATION.
           ls_row-row_kind = 'TASK'.
           ls_row-task_id = ls_task-task_id.
           ls_row-status = ls_task-status.
-          ls_row-definition = ls_task-definition.
-          ls_row-result = ls_task-result.
+          ls_row-task_definition = ls_task-definition.
+          ls_row-task_result = ls_task-result.
           ls_row-user_id = ls_task-processor.
           ls_row-detail = ls_task-step_type.
           APPEND ls_row TO rt_rows.
         ENDLOOP.
-        CLEAR: ls_row-task_id, ls_row-status, ls_row-definition,
-               ls_row-result, ls_row-user_id, ls_row-detail.
+        CLEAR: ls_row-task_id, ls_row-status, ls_row-task_definition,
+               ls_row-task_result, ls_row-user_id, ls_row-detail.
         DATA(lt_notices) = zcl_pr_email_policy=>notices(
           iv_pr = iv_pr is_workflow = ls_workflow it_tasks = lt_tasks
           it_items = zcl_pr_email_source=>items( iv_pr )

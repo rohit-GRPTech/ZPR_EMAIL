@@ -33,8 +33,8 @@ define table zpr_email_evt {
   workflow_id     : abap.numc(12);
   task_id         : abap.numc(12);
   status          : abap.char(12);
-  definition      : abap.char(8);
-  result          : abap.char(32);
+  task_definition : abap.char(8);
+  task_result     : abap.char(32);
   user_id         : abap.char(12);
   detail          : abap.char(255);
 }
