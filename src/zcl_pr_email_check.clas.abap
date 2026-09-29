@@ -33,6 +33,46 @@ CLASS zcl_pr_email_check IMPLEMENTATION.
           DATA(lt_workflows) = zcl_pr_email_source=>workflows( ls_pr-PurchaseRequisition ).
           out->write( 'Applied overall workflow instances:' ).
           out->write( lt_workflows ).
+          "Diagnostic only: mirror the tracking report's six-key search,
+          "but show the scenario and actual keys. Never use these candidates
+          "as email routing authority without verifying the PR object mapping.
+          DATA lv_pr_padded TYPE zif_pr_email_types=>ty_pr.
+          lv_pr_padded = |{ ls_pr-PurchaseRequisition ALPHA = IN }|.
+          DATA(lv_pr_unpadded) = |{ lv_pr_padded ALPHA = OUT }|.
+          CONDENSE lv_pr_unpadded NO-GAPS.
+          SELECT FROM I_WorkflowStatusOverview
+            FIELDS WorkflowInternalID AS workflow_id,
+              WorkflowScenarioDefinition AS scenario,
+              WorkflowExternalStatus AS status,
+              WrkflwTskCreationUTCDateTime AS created_at,
+              SAPBusinessObjectNodeKey1 AS key1,
+              SAPBusinessObjectNodeKey2 AS key2,
+              SAPBusinessObjectNodeKey3 AS key3,
+              SAPBusinessObjectNodeKey4 AS key4,
+              SAPBusinessObjectNodeKey5 AS key5,
+              SAPBusinessObjectNodeKey6 AS key6
+            WHERE SAPBusinessObjectNodeKey1 = @lv_pr_padded
+               OR SAPBusinessObjectNodeKey1 = @lv_pr_unpadded
+               OR SAPBusinessObjectNodeKey2 = @lv_pr_padded
+               OR SAPBusinessObjectNodeKey2 = @lv_pr_unpadded
+               OR SAPBusinessObjectNodeKey3 = @lv_pr_padded
+               OR SAPBusinessObjectNodeKey3 = @lv_pr_unpadded
+               OR SAPBusinessObjectNodeKey4 = @lv_pr_padded
+               OR SAPBusinessObjectNodeKey4 = @lv_pr_unpadded
+               OR SAPBusinessObjectNodeKey5 = @lv_pr_padded
+               OR SAPBusinessObjectNodeKey5 = @lv_pr_unpadded
+               OR SAPBusinessObjectNodeKey6 = @lv_pr_padded
+               OR SAPBusinessObjectNodeKey6 = @lv_pr_unpadded
+            ORDER BY WrkflwTskCreationUTCDateTime DESCENDING,
+              WorkflowInternalID DESCENDING
+            INTO TABLE @DATA(lt_candidates)
+            UP TO 50 ROWS.
+          out->write( 'DIAGNOSTIC: up to 50 exact number matches across all six object keys and all scenarios.' ).
+          out->write( 'A number match alone does not prove this is a PR workflow. Check scenario and all keys.' ).
+          out->write( lt_candidates ).
+          IF lt_candidates IS INITIAL.
+            out->write( 'No exact key match in any scenario. The tracking report may be displaying an unrelated workflow.' ).
+          ENDIF.
           DATA(ls_workflow) = zcl_pr_email_policy=>latest( lt_workflows ).
           IF ls_workflow-workflow_id IS INITIAL.
             out->write( 'No overall workflow visible yet. Retry after workflow creation.' ).

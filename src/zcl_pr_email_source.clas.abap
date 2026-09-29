@@ -178,7 +178,8 @@ CLASS zcl_pr_email_source IMPLEMENTATION.
 
     DATA(lv_address) = CONV string( rv_email ).
 
-    IF lv_address NS '@' OR lv_address CS space.
+    "CA tests an actual blank; CS ignores trailing blanks in CHAR operands.
+    IF lv_address NS '@' OR lv_address CA space.
 
       RAISE EXCEPTION NEW zcx_pr_email(
         iv_detail = |User { iv_user }: invalid workplace email address|

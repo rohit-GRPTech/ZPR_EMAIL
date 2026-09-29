@@ -134,7 +134,7 @@ CLASS zcl_pr_email_service IMPLEMENTATION.
 
     IF options-purchasing_email IS NOT INITIAL.
       DATA(lv_purchasing_email) = CONV string( options-purchasing_email ).
-      IF lv_purchasing_email NS '@' OR lv_purchasing_email CS space
+      IF lv_purchasing_email NS '@' OR lv_purchasing_email CA space
           OR lv_purchasing_email CS ';' OR lv_purchasing_email CS ','.
         RAISE EXCEPTION NEW zcx_pr_email( iv_detail = 'Enter one valid purchasing mailbox, or leave it blank.' ).
       ENDIF.

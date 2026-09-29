@@ -29,6 +29,12 @@ Standard approval definitions `02000702` and `01800239` are used when `APPROVAL_
 
 ## Operational boundary
 
+A local event **diagnostic probe** is available for PR `4900000120`.
+Follow [the event test instructions](docs/TEST-LOCAL-PR-EVENTS.md) to activate it,
+approve level 1 and compare persisted event observations with the next task.
+It sends no emails. Intermediate-step event delivery and timing are not yet
+verified; this probe does not replace the scheduled sender below.
+
 This is a polling implementation, not a PR-save or workflow-step callback. Schedule it before the business process starts and choose a recurrence supported by your tenant. A step created and completed between polls can be missed. A rejection followed by workflow restart before the next poll can also be missed. Historical potential recipients no longer exposed by SAP and never observed by this job cannot be reconstructed. If every transient event and every historical potential recipient must be guaranteed, this polling design does not meet that requirement; a tenant-supported event integration and durable event history are needed.
 
 `ZPR_EMAIL_LOG` prevents repeated queueing for the same PR/workflow/task/event/user. `Q` means registered with SAP's asynchronous mail API, not delivered. Delivery and SMTP retries must be checked in Monitor Email Transmissions. Do not delete Q rows or enable a resend until the SAP transmission status is reconciled. Two SAP users sharing a mailbox may each receive an email; deduplication is by user, not mailbox.
